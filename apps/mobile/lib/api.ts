@@ -59,7 +59,33 @@ export interface WorkspaceCheckoutParams {
   referralId?: string
 }
 
+function throwIfBetterAuthErrorPayload(data: unknown): void {
+  if (!data || typeof data !== 'object') return
+  const err = (data as { error?: { message?: unknown } | null }).error
+  if (err && typeof err === 'object' && err !== null && 'message' in err && err.message) {
+    throw new Error(String(err.message))
+  }
+}
+
 export const api = {
+  /** Better Auth: POST .../api/auth/request-password-reset */
+  async authRequestPasswordReset(http: HttpClient, params: { email: string; redirectTo: string }) {
+    const res = await http.authRequest<unknown>('/request-password-reset', {
+      method: 'POST',
+      body: params,
+    })
+    throwIfBetterAuthErrorPayload(res.data)
+  },
+
+  /** Better Auth: POST .../api/auth/reset-password */
+  async authResetPassword(http: HttpClient, params: { newPassword: string; token: string }) {
+    const res = await http.authRequest<unknown>('/reset-password', {
+      method: 'POST',
+      body: params,
+    })
+    throwIfBetterAuthErrorPayload(res.data)
+  },
+
   async createCheckoutSession(http: HttpClient, params: CheckoutParams) {
     const res = await http.post<{ url?: string }>('/api/billing/checkout', params)
     return res.data

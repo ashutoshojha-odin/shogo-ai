@@ -150,7 +150,12 @@ export default observer(function SearchPage() {
   }, [])
 
   useEffect(() => {
-    if (!isAuthenticated || !user?.id) return
+    // Without this the spinner never clears for a signed-out or still-hydrating
+    // session, because `loading` only drops in the fetch's `finally`.
+    if (!isAuthenticated || !user?.id) {
+      setLoading(false)
+      return
+    }
     let cancelled = false
     const load = async () => {
       setLoading(true)

@@ -1079,7 +1079,6 @@ export const CompactChatInput = forwardRef<View, CompactChatInputProps>(
                   scrollEnabled={inputHeight > COMPACT_INPUT_PROMINENT_MIN_HEIGHT}
                   blurOnSubmit
                   returnKeyType="done"
-                  automaticallyAdjustKeyboardInsets={false}
                   onContentSizeChange={(e) => {
                     if (composerEmpty) {
                       if (inputHeight !== COMPACT_INPUT_PROMINENT_MIN_HEIGHT) {

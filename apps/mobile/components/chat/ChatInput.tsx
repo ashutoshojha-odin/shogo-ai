@@ -24,7 +24,6 @@ import {
   ScrollView,
   Platform,
   useWindowDimensions,
-  useColorScheme,
 } from "react-native"
 import { cn } from "@shogo/shared-ui/primitives"
 import {
@@ -100,6 +99,7 @@ import {
 } from "./ComposerPlusMenu"
 import { ComposerPlusCoreSections } from "./ComposerPlusCoreSections"
 import { chatGptComposerColors } from "../../lib/native-chatgpt-theme"
+import { useResolvedTheme } from "../../contexts/theme"
 
 export type InteractionMode = "agent" | "plan" | "ask"
 
@@ -453,12 +453,14 @@ function ChatInputImpl({
 }: ChatInputProps) {
   const { features } = usePlatformConfig()
   const { width: windowWidth, height: windowHeight } = useWindowDimensions()
-  const colorScheme = useColorScheme()
+  // The app's own light/dark preference, not the OS appearance — the composer
+  // sits inside a transcript themed from this same value.
+  const resolvedTheme = useResolvedTheme()
   const effectiveIsPro = features.billing ? isPro : true
   const isNative = Platform.OS !== "web"
   const isNativePhone = Platform.OS !== "web" && windowWidth < 600
   const useProminentComposer = isNativePhone && !flush
-  const chatgptComposer = chatGptComposerColors(colorScheme !== "light")
+  const chatgptComposer = chatGptComposerColors(resolvedTheme === "dark")
   const inputMinHeight = useProminentComposer
     ? CHAT_INPUT_PROMINENT_MIN_HEIGHT
     : isNative

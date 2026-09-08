@@ -20,6 +20,7 @@ import type { HttpClient } from '@shogo-ai/sdk'
 import {
   useNativePhoneWindow,
   nativeContentWidth,
+  nativePanelRootStyle,
   nativeSettingsPaneStyle,
   nativeTwoColumnCardWidth,
   NATIVE_PHONE_CONTROL_SIZE,
@@ -218,11 +219,7 @@ export function AnalyticsPanel({ projectId, agentUrl, visible }: AnalyticsPanelP
     <View
       collapsable={false}
       className={comfortable ? undefined : 'absolute inset-0 flex-col'}
-      style={
-        comfortable
-          ? { ...nativeSettingsPaneStyle(pageWidth), display: visible ? 'flex' : 'none' }
-          : { display: visible ? 'flex' : 'none' }
-      }
+      style={nativePanelRootStyle(comfortable, pageWidth, visible)}
     >
       {/* Header */}
       <View

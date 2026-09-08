@@ -26,6 +26,7 @@ import { useRuntimeLogStream } from '../../../lib/runtime-logs/useRuntimeLogStre
 import {
   useNativePhoneWindow,
   nativeContentWidth,
+  nativePanelRootStyle,
   nativeSettingsPaneStyle,
 } from '../../../lib/native-phone-layout'
 
@@ -192,11 +193,7 @@ export function LogsPanel({ projectId, agentUrl, visible }: LogsPanelProps) {
     <View
       collapsable={false}
       className={comfortable ? undefined : 'absolute inset-0 flex-col'}
-      style={
-        comfortable
-          ? { ...nativeSettingsPaneStyle(pageWidth), display: visible ? 'flex' : 'none' }
-          : { display: visible ? 'flex' : 'none' }
-      }
+      style={nativePanelRootStyle(comfortable, pageWidth, visible)}
     >
       {/* ---- Header toolbar ---- */}
       <View

@@ -26,6 +26,7 @@ import { cn } from "@shogo/shared-ui/primitives"
 import {
   useIsNativePhoneLayout,
   useNativePhoneWindow,
+  nativePanelRootStyle,
   nativeSettingsPaneStyle,
   nativeEqualChipWidths,
   NATIVE_PHONE_PICKER_INSET,
@@ -862,11 +863,7 @@ export function AgentsPanel({ visible, selectedToolId, agentUrl }: AgentsPanelPr
     <View
       collapsable={false}
       className={comfortable ? undefined : "absolute inset-0 flex-col"}
-      style={
-        comfortable
-          ? { ...nativeSettingsPaneStyle(pageWidth), display: visible ? "flex" : "none" }
-          : { display: visible ? "flex" : "none" }
-      }
+      style={nativePanelRootStyle(comfortable, pageWidth, visible)}
     >
       {/* Sub-tab toggle */}
       <View

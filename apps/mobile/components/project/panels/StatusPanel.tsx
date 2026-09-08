@@ -30,6 +30,7 @@ import { resolveShortName } from '../../../lib/visible-models'
 import { usePlatformConfig } from '../../../lib/platform-config'
 import {
   useNativePhoneWindow,
+  nativePanelRootStyle,
   nativeSettingsPaneStyle,
   nativeTwoColumnCardWidth,
 } from '../../../lib/native-phone-layout'
@@ -386,11 +387,7 @@ export function StatusPanel({ projectId, agentUrl, visible, isPaidPlan }: Status
     <View
       collapsable={false}
       className={comfortable ? undefined : 'absolute inset-0 flex-col'}
-      style={
-        comfortable
-          ? { ...nativeSettingsPaneStyle(pageWidth), display: visible ? 'flex' : 'none' }
-          : { display: visible ? 'flex' : 'none' }
-      }
+      style={nativePanelRootStyle(comfortable, pageWidth, visible)}
     >
       {/* Header */}
       <View

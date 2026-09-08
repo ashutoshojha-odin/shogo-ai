@@ -48,7 +48,7 @@ import {
 } from 'lucide-react-native'
 import { ProjectImportModal } from '../projects/ProjectImportModal'
 import { CloudProjectPickerModal } from '../projects/CloudProjectPickerModal'
-import { useComposerPlusClose } from '../chat/AttachSourceSheet'
+import { useComposerPlusClose } from '../chat/ComposerPlusMenu'
 import { useOpenLocalFolder } from './useOpenLocalFolder'
 import { useOpenCloudProject } from './useOpenCloudProject'
 

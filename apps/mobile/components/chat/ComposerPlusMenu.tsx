@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (C) 2026 Shogo Technologies, Inc.
 
-import { createContext, useContext, type ComponentType, type ReactNode } from "react"
+import { createContext, useCallback, useContext, useState, type ComponentType, type ReactNode } from "react"
 import { View, Text, Pressable, Modal, ScrollView } from "react-native"
 import { Camera, ChevronDown, ChevronUp, FolderOpen, Image as ImageIcon, Languages } from "lucide-react-native"
 import type { NativeAttachAction } from "../../lib/native-attachment-picker"
@@ -14,29 +14,35 @@ export function useComposerPlusClose() {
   return useContext(ComposerPlusCloseContext)
 }
 
-/** ChatGPT iOS composer tokens (App Store 1.2026 + OpenAI product palette). */
-export const CHATGPT_COMPOSER = {
-  light: {
-    fill: "#ffffff",
-    border: "#e5e5e5",
-    borderFocus: "#cfcfcf",
-    text: "#0d0d0d",
-    placeholder: "#8e8e8e",
-    icon: "#0d0d0d",
-    sendFill: "#0d0d0d",
-    sendIcon: "#ffffff",
-  },
-  dark: {
-    fill: "#212121",
-    border: "rgba(255,255,255,0.08)",
-    borderFocus: "rgba(255,255,255,0.16)",
-    text: "#ececec",
-    placeholder: "#8e8e8e",
-    icon: "#ececec",
-    sendFill: "#ffffff",
-    sendIcon: "#0d0d0d",
-  },
-} as const
+/** Fraction of the viewport the plus sheet may occupy before it scrolls. */
+export const COMPOSER_PLUS_SHEET_HEIGHT_RATIO = 0.72
+
+export function composerPlusSheetMaxHeight(windowHeight: number): number {
+  return Math.round(windowHeight * COMPOSER_PLUS_SHEET_HEIGHT_RATIO)
+}
+
+/** Open/expanded state for the native plus sheet, shared by both composers. */
+export function useComposerPlusMenu() {
+  const [plusMenuOpen, setPlusMenuOpen] = useState(false)
+  const [plusExpandedId, setPlusExpandedId] = useState<string | null>(null)
+
+  const closePlusMenu = useCallback(() => {
+    setPlusMenuOpen(false)
+    setPlusExpandedId(null)
+  }, [])
+
+  const togglePlusSection = useCallback((id: string) => {
+    setPlusExpandedId((current) => (current === id ? null : id))
+  }, [])
+
+  return {
+    plusMenuOpen,
+    setPlusMenuOpen,
+    plusExpandedId,
+    closePlusMenu,
+    togglePlusSection,
+  }
+}
 
 export const PLUS_ATTACH_ROWS: {
   action: NativeAttachAction

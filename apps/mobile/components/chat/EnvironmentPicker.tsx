@@ -33,7 +33,7 @@ import { useInstancePicker, type Instance } from "@shogo/shared-app/hooks"
 import { useActiveWorkspace } from "../../hooks/useActiveWorkspace"
 import { API_URL } from "../../lib/api"
 import { authClient } from "../../lib/auth-client"
-import { useComposerPlusClose } from "./AttachSourceSheet"
+import { useComposerPlusClose } from "./ComposerPlusMenu"
 
 function getAuthHeaders(): Record<string, string> {
   if (Platform.OS === "web") return {}

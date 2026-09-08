@@ -61,7 +61,6 @@ import {
   Sparkles,
   Languages,
   Play,
-  Cloud,
 } from "lucide-react-native"
 import { useVoiceInput } from "./useVoiceInput"
 import { VoiceWaveform } from "./VoiceWaveform"
@@ -93,12 +92,14 @@ import {
   type NativePickedAttachment,
 } from "../../lib/native-attachment-picker"
 import {
-  CHATGPT_COMPOSER,
-  ComposerPlusModeList,
   ComposerPlusSection,
   ComposerPlusSheet,
   compactNativeModelLabel,
+  composerPlusSheetMaxHeight,
+  useComposerPlusMenu,
 } from "./ComposerPlusMenu"
+import { ComposerPlusCoreSections } from "./ComposerPlusCoreSections"
+import { chatGptComposerColors } from "../../lib/native-chatgpt-theme"
 
 export type InteractionMode = "agent" | "plan" | "ask"
 
@@ -457,7 +458,7 @@ function ChatInputImpl({
   const isNative = Platform.OS !== "web"
   const isNativePhone = Platform.OS !== "web" && windowWidth < 600
   const useProminentComposer = isNativePhone && !flush
-  const chatgptComposer = colorScheme === "light" ? CHATGPT_COMPOSER.light : CHATGPT_COMPOSER.dark
+  const chatgptComposer = chatGptComposerColors(colorScheme !== "light")
   const inputMinHeight = useProminentComposer
     ? CHAT_INPUT_PROMINENT_MIN_HEIGHT
     : isNative
@@ -518,8 +519,8 @@ function ChatInputImpl({
   const [isDragOver, setIsDragOver] = useState(false)
   const [interactionModeOpen, setInteractionModeOpen] = useState(false)
   const [attachSheetOpen, setAttachSheetOpen] = useState(false)
-  const [plusMenuOpen, setPlusMenuOpen] = useState(false)
-  const [plusExpandedId, setPlusExpandedId] = useState<string | null>(null)
+  const { plusMenuOpen, setPlusMenuOpen, plusExpandedId, closePlusMenu, togglePlusSection } =
+    useComposerPlusMenu()
 
   useEffect(() => {
     inputValueRef.current = inputValue
@@ -972,15 +973,6 @@ function ChatInputImpl({
       }
       return [...prev, ...added]
     })
-  }, [])
-
-  const closePlusMenu = useCallback(() => {
-    setPlusMenuOpen(false)
-    setPlusExpandedId(null)
-  }, [])
-
-  const togglePlusSection = useCallback((id: string) => {
-    setPlusExpandedId((current) => (current === id ? null : id))
   }, [])
 
   const handlePlusAttach = useCallback((action: Parameters<typeof executeNativeAttachAction>[0]) => {
@@ -1909,37 +1901,23 @@ function ChatInputImpl({
                   onClose={closePlusMenu}
                   expandedId={plusExpandedId}
                   onToggleSection={togglePlusSection}
-                  maxHeight={Math.round(windowHeight * 0.72)}
+                  maxHeight={composerPlusSheetMaxHeight(windowHeight)}
                   onAttach={handlePlusAttach}
                   attachDisabled={pendingFiles.length >= MAX_FILES}
                 >
-                  <ComposerPlusSection
-                    id="mode"
-                    label="Mode"
-                    value={currentInteractionConfig.label}
-                    Icon={currentInteractionConfig.Icon}
-                  >
-                    <ComposerPlusModeList
-                      modes={INTERACTION_MODES}
-                      selectedId={interactionMode}
-                      onSelect={handleInteractionModeChange}
-                      dualPlan={dualPlan}
-                      onDualPlanChange={onDualPlanChange}
-                      dualPlanDisabled={disabled}
-                      dualPlanTestId="dual-plan-toggle"
-                    />
-                  </ComposerPlusSection>
-                  <ComposerPlusSection
-                    id="environment"
-                    label="Environment"
-                    Icon={Cloud}
-                  >
-                    <EnvironmentPicker
-                      disabled={disabled}
-                      presentation="list"
-                      listActive={plusExpandedId === "environment"}
-                    />
-                  </ComposerPlusSection>
+                  <ComposerPlusCoreSections
+                    modes={INTERACTION_MODES}
+                    interactionMode={interactionMode}
+                    currentModeLabel={currentInteractionConfig.label}
+                    CurrentModeIcon={currentInteractionConfig.Icon}
+                    onInteractionModeChange={handleInteractionModeChange}
+                    dualPlan={dualPlan}
+                    onDualPlanChange={onDualPlanChange}
+                    dualPlanDisabled={disabled}
+                    dualPlanTestId="dual-plan-toggle"
+                    expandedId={plusExpandedId}
+                    environmentDisabled={disabled}
+                  />
                   {quickActions.length > 0 ? (
                     <ComposerPlusSection
                       id="quick-actions"

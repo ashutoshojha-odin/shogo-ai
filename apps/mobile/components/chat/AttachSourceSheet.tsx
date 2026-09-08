@@ -11,8 +11,6 @@ import {
 } from "../../lib/native-attachment-picker"
 import { ComposerPlusCloseContext } from "./ComposerPlusMenu"
 
-export { ComposerPlusCloseContext, useComposerPlusClose } from "./ComposerPlusMenu"
-
 export interface AttachSourceSheetProps extends NativeAttachPickerOptions {
   open: boolean
   onOpenChange: (open: boolean) => void

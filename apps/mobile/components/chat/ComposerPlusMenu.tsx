@@ -123,7 +123,7 @@ export function compactNativeModelLabel(modelId: string): string {
   return label.length > 12 ? `${label.slice(0, 9)}…` : label
 }
 
-type PlusModeOption<T extends string> = {
+export type PlusModeOption<T extends string> = {
   id: T
   label: string
   description: string

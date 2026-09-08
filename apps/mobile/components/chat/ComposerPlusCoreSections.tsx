@@ -8,10 +8,12 @@
  * `EnvironmentPicker` → `ComposerPlusMenu` import cycle.
  */
 import { Cloud } from "lucide-react-native"
-import { ComposerPlusModeList, ComposerPlusSection } from "./ComposerPlusMenu"
+import {
+  ComposerPlusModeList,
+  ComposerPlusSection,
+  type PlusModeOption,
+} from "./ComposerPlusMenu"
 import { EnvironmentPicker } from "./EnvironmentPicker"
-
-type ModeOption<T extends string> = Parameters<typeof ComposerPlusModeList<T>>[0]["modes"][number]
 
 export function ComposerPlusCoreSections<T extends string>({
   modes,
@@ -26,10 +28,10 @@ export function ComposerPlusCoreSections<T extends string>({
   expandedId,
   environmentDisabled,
 }: {
-  modes: ModeOption<T>[]
+  modes: PlusModeOption<T>[]
   interactionMode: T
   currentModeLabel: string
-  CurrentModeIcon: ModeOption<T>["Icon"]
+  CurrentModeIcon: PlusModeOption<T>["Icon"]
   onInteractionModeChange: (id: T) => void
   dualPlan?: boolean
   onDualPlanChange?: (next: boolean) => void

@@ -5,7 +5,7 @@
  * is a foreground sheet the user drags to the right. One progress value
  * (0 closed → 1 open) drives sheet translation and left-corner radius.
  */
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Animated,
   PanResponder,
@@ -242,6 +242,72 @@ function settleSheet(
 ) {
   const progress = nativeDrawerProgressFromDelta(start, dx, width)
   const open = nativeDrawerShouldSettleOpen(progress, vx, start)
+  // Mount the sidebar before the sheet finishes travelling; the settle callback
+  // is what commits the closed state.
   if (open) onOpenChange(true)
   snapNativeDrawer(drawerProgress, open, onOpenChange)
 }
+
+/**
+ * Complete open/close state machine for a native sheet drawer: the animated
+ * progress value, the imperative open/close/toggle callbacks, the swipe
+ * handlers, and the derived sheet styles.
+ *
+ * Shared by the (app) and (admin) shells, which previously kept byte-identical
+ * copies of this wiring.
+ */
+export function useNativeSheetDrawer({
+  enabled,
+  windowWidth,
+  swipeEnabled = enabled,
+}: {
+  /** Whether this platform/route uses the sheet drawer at all. */
+  enabled: boolean
+  windowWidth: number
+  /** Swipe can be suppressed on routes that own the horizontal gesture. */
+  swipeEnabled?: boolean
+}) {
+  const drawerProgress = useRef(new Animated.Value(0)).current
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const drawerWidth = nativeDrawerPanelWidth(windowWidth)
+
+  const resetDrawer = useCallback(() => {
+    drawerProgress.setValue(0)
+    setDrawerOpen(false)
+  }, [drawerProgress])
+
+  const openDrawer = useCallback(() => {
+    setDrawerOpen(true)
+    snapNativeDrawer(drawerProgress, true)
+  }, [drawerProgress])
+
+  const closeDrawer = useCallback(() => {
+    snapNativeDrawer(drawerProgress, false, (open) => {
+      if (!open) resetDrawer()
+    })
+  }, [drawerProgress, resetDrawer])
+
+  const swipeHandlers = useNativeDrawerSheetSwipe({
+    enabled: swipeEnabled,
+    drawerWidth,
+    drawerProgress,
+    isOpen: drawerOpen,
+    onOpenChange: setDrawerOpen,
+  })
+  const { sheetStyle, sheetClipStyle } = useNativeDrawerSheetStyle(drawerProgress, drawerWidth)
+
+  return {
+    drawerOpen,
+    setDrawerOpen,
+    drawerWidth,
+    openDrawer,
+    closeDrawer,
+    resetDrawer,
+    swipeHandlers,
+    sheetStyle,
+    sheetClipStyle,
+    enabled,
+  }
+}
+
+export type NativeSheetDrawer = ReturnType<typeof useNativeSheetDrawer>

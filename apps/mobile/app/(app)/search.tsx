@@ -5,7 +5,7 @@
  *
  * Opened from the sidebar search icon. Web keeps the command-palette modal.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Animated,
@@ -34,18 +34,9 @@ import {
 } from '../../contexts/domain'
 import { useActiveWorkspace } from '../../hooks/useActiveWorkspace'
 import { usePlatformConfig } from '../../lib/platform-config'
-import { CHATGPT_COMPOSER } from '../../components/chat/ComposerPlusMenu'
-import {
-  nativeComposerDockBottomPad,
-  nativeComposerKeyboardDuration,
-  nativeComposerKeyboardOpenFromSource,
-} from '../../lib/native-composer-keyboard'
-import {
-  nativeComposerKeyboardEasing,
-  nativeComposerKeyboardOverlapFromEvent,
-  useNativeComposerKeyboard,
-} from '../../lib/use-native-composer-keyboard'
-import { isNativePlatform, nativePhoneCanvas, NATIVE_PHONE_GUTTER } from '../../lib/native-phone-layout'
+import { useNativeComposerDockPad } from '../../lib/use-native-composer-keyboard'
+import { isNativePlatform, NATIVE_PHONE_GUTTER } from '../../lib/native-phone-layout'
+import { nativeChatGptPalette } from '../../lib/native-chatgpt-theme'
 
 const SEARCH_MIN_KEYBOARD_PAD = 8
 const SEARCH_TAB_ROW_HEIGHT = 52
@@ -53,8 +44,8 @@ const SEARCH_PILL_HEIGHT = 36
 const SEARCH_PILL_RADIUS = 18
 const SEARCH_PILL_GAP = 8
 const SEARCH_PILL_PAD_X = 14
+/** Slightly warmer than `--color-muted` so idle pills read against the canvas. */
 const SEARCH_PILL_IDLE = { dark: '#2a2a2a', light: '#f4f4f5' } as const
-const SEARCH_PILL_COUNT_IDLE = CHATGPT_COMPOSER.dark.placeholder
 const SEARCH_PILL_COUNT_ACTIVE = {
   dark: 'rgba(13,13,13,0.55)',
   light: 'rgba(255,255,255,0.6)',
@@ -82,11 +73,49 @@ function timeAgo(timestamp?: number | string | null): string {
   return formatDistanceToNow(new Date(ms), { addSuffix: true })
 }
 
+const ROW_ICON: Record<SearchTab, typeof Folder> = {
+  all: Folder,
+  starred: Star,
+  shared: Users,
+  keys: Key,
+}
+
+const SearchResultRow = memo(function SearchResultRow({
+  row,
+  onPress,
+}: {
+  row: SearchRow
+  onPress: (row: SearchRow) => void
+}) {
+  const Icon = ROW_ICON[row.kind]
+  return (
+    <Pressable
+      onPress={() => onPress(row)}
+      accessibilityRole="button"
+      accessibilityLabel={row.title}
+      className="flex-row items-center gap-3 px-4 py-3.5 active:bg-muted/60"
+    >
+      <View className="h-11 w-11 items-center justify-center rounded-2xl bg-muted">
+        <Icon size={18} className="text-foreground" />
+      </View>
+      <View className="min-w-0 flex-1">
+        <Text className="text-[16px] font-medium text-foreground" numberOfLines={1}>
+          {row.title}
+        </Text>
+        <Text className="mt-0.5 text-[13px] text-muted-foreground" numberOfLines={1}>
+          {row.subtitle}
+        </Text>
+      </View>
+    </Pressable>
+  )
+})
+
 export default observer(function SearchPage() {
   const router = useRouter()
   const { user, isAuthenticated } = useAuth()
   const isDark = useResolvedTheme() === 'dark'
-  const pageBg = nativePhoneCanvas(isDark)
+  const palette = nativeChatGptPalette(isDark)
+  const pageBg = palette.canvas
   const { localMode } = usePlatformConfig()
   const projects = useProjectCollection()
   const workspaces = useWorkspaceCollection()
@@ -98,7 +127,11 @@ export default observer(function SearchPage() {
   const inputRef = useRef<TextInput>(null)
   const insets = useSafeAreaInsets()
   const restKeyboardPad = Math.max(insets.bottom, SEARCH_MIN_KEYBOARD_PAD)
-  const composerKeyboardPad = useRef(new Animated.Value(restKeyboardPad)).current
+  const composerKeyboardPad = useNativeComposerDockPad({
+    enabled: isNativePlatform(),
+    restPad: restKeyboardPad,
+    iosKeyboardAvoiding: false,
+  })
 
   const [query, setQuery] = useState('')
   const [tab, setTab] = useState<SearchTab>('all')
@@ -116,25 +149,13 @@ export default observer(function SearchPage() {
     return () => clearTimeout(t)
   }, [])
 
-  useNativeComposerKeyboard(isNativePlatform(), (event, source) => {
-    const overlap = nativeComposerKeyboardOverlapFromEvent(event)
-    const keyboardOpen = nativeComposerKeyboardOpenFromSource(source, overlap, restKeyboardPad)
-    if (keyboardOpen == null) return
-    Animated.timing(composerKeyboardPad, {
-      toValue: nativeComposerDockBottomPad({
-        keyboardOpen,
-        overlap,
-        restPad: restKeyboardPad,
-        iosKeyboardAvoiding: false,
-      }),
-      duration: nativeComposerKeyboardDuration(event.duration),
-      easing: nativeComposerKeyboardEasing(),
-      useNativeDriver: false,
-    }).start()
-  })
-
   useEffect(() => {
-    if (!isAuthenticated || !user?.id) return
+    // Without this the spinner never clears for a signed-out or still-hydrating
+    // session, because `loading` only drops in the fetch's `finally`.
+    if (!isAuthenticated || !user?.id) {
+      setLoading(false)
+      return
+    }
     let cancelled = false
     const load = async () => {
       setLoading(true)
@@ -197,55 +218,55 @@ export default observer(function SearchPage() {
 
   const q = query.trim().toLowerCase()
 
-  const rows = useMemo<SearchRow[]>(() => {
-    const projectRows = (list: any[], kind: SearchTab): SearchRow[] =>
-      list
-        .filter((p: any) => matchesQuery(`${p.name ?? ''} ${p.description ?? ''}`, q))
-        .sort((a: any, b: any) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0))
-        .map((p: any) => ({
-          id: p.id,
-          title: p.name || 'Untitled project',
-          subtitle: [p.description, timeAgo(p.updatedAt || p.createdAt)].filter(Boolean).join(' · ') || 'Project',
-          href: `/(app)/projects/${p.id}?tab=chat-fullscreen`,
-          kind,
-        }))
+  /**
+   * Filter every tab's source list once. The tab strip needs a count for each
+   * tab and the list needs the rows for the selected one, so filtering per
+   * consumer would run the same predicate over the same arrays twice. Sorting
+   * stays out of here — only the selected tab is ever rendered.
+   */
+  const matches = useMemo(() => {
+    const filterProjects = (list: any[]) =>
+      list.filter((p: any) => matchesQuery(`${p.name ?? ''} ${p.description ?? ''}`, q))
+    return {
+      all: filterProjects(allProjects),
+      starred: filterProjects(starredProjects),
+      shared: filterProjects(sharedProjects),
+      keys: keys.filter((k) => matchesQuery(`${k.name ?? ''} ${k.kind ?? ''}`, q)),
+    }
+  }, [allProjects, keys, q, sharedProjects, starredProjects])
 
-    if (tab === 'all') return projectRows(allProjects, 'all')
-    if (tab === 'starred') return projectRows(starredProjects, 'starred')
-    if (tab === 'shared') return projectRows(sharedProjects, 'shared')
-    return keys
-      .filter((k) => matchesQuery(`${k.name ?? ''} ${k.kind ?? ''}`, q))
-      .map((k) => ({
+  const rows = useMemo<SearchRow[]>(() => {
+    if (tab === 'keys') {
+      return matches.keys.map((k) => ({
         id: k.id,
         title: k.name || 'API key',
         subtitle: k.kind === 'device' ? 'Device' : 'API key',
         href: '/(app)/api-keys',
         kind: 'keys' as const,
       }))
-  }, [allProjects, keys, q, sharedProjects, starredProjects, tab])
-
-  const counts = useMemo(() => {
-    const projectCount = (list: any[]) =>
-      q ? list.filter((p: any) => matchesQuery(`${p.name ?? ''} ${p.description ?? ''}`, q)).length : list.length
-    return {
-      all: projectCount(allProjects),
-      starred: projectCount(starredProjects),
-      shared: projectCount(sharedProjects),
-      keys: q ? keys.filter((k) => matchesQuery(`${k.name ?? ''} ${k.kind ?? ''}`, q)).length : keys.length,
     }
-  }, [allProjects, keys, q, sharedProjects, starredProjects])
+    return matches[tab]
+      .slice()
+      .sort((a: any, b: any) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0))
+      .map((p: any) => ({
+        id: p.id,
+        title: p.name || 'Untitled project',
+        subtitle: [p.description, timeAgo(p.updatedAt || p.createdAt)].filter(Boolean).join(' · ') || 'Project',
+        href: `/(app)/projects/${p.id}?tab=chat-fullscreen`,
+        kind: tab,
+      }))
+  }, [matches, tab])
 
   const tabs = useMemo(
-    () =>
-      (
-        [
-          { id: 'all' as const, label: 'All projects', count: counts.all },
-          { id: 'starred' as const, label: 'Starred', count: counts.starred },
-          ...(!localMode ? [{ id: 'shared' as const, label: 'Shared with me', count: counts.shared }] : []),
-          { id: 'keys' as const, label: 'API keys', count: counts.keys },
-        ]
-      ),
-    [counts.all, counts.keys, counts.shared, counts.starred, localMode],
+    () => [
+      { id: 'all' as const, label: 'All projects', count: matches.all.length },
+      { id: 'starred' as const, label: 'Starred', count: matches.starred.length },
+      ...(!localMode
+        ? [{ id: 'shared' as const, label: 'Shared with me', count: matches.shared.length }]
+        : []),
+      { id: 'keys' as const, label: 'API keys', count: matches.keys.length },
+    ],
+    [localMode, matches],
   )
 
   const closeSearch = useCallback(() => {
@@ -258,6 +279,11 @@ export default observer(function SearchPage() {
       router.push(row.href as any)
     },
     [router],
+  )
+
+  const renderRow = useCallback(
+    ({ item }: { item: SearchRow }) => <SearchResultRow row={item} onPress={openRow} />,
+    [openRow],
   )
 
   const emptyCopy =
@@ -274,30 +300,6 @@ export default observer(function SearchPage() {
             : 'No projects yet'
 
   if (Platform.OS === 'web') return null
-
-  const renderRow = ({ item }: { item: SearchRow }) => {
-    const Icon = item.kind === 'keys' ? Key : item.kind === 'starred' ? Star : item.kind === 'shared' ? Users : Folder
-    return (
-      <Pressable
-        onPress={() => openRow(item)}
-        accessibilityRole="button"
-        accessibilityLabel={item.title}
-        className="flex-row items-center gap-3 px-4 py-3.5 active:bg-muted/60"
-      >
-        <View className="h-11 w-11 items-center justify-center rounded-2xl bg-muted">
-          <Icon size={18} className="text-foreground" />
-        </View>
-        <View className="min-w-0 flex-1">
-          <Text className="text-[16px] font-medium text-foreground" numberOfLines={1}>
-            {item.title}
-          </Text>
-          <Text className="mt-0.5 text-[13px] text-muted-foreground" numberOfLines={1}>
-            {item.subtitle}
-          </Text>
-        </View>
-      </Pressable>
-    )
-  }
 
   return (
     <View className="flex-1 bg-background" style={{ flex: 1, paddingTop: insets.top, backgroundColor: pageBg }}>
@@ -329,7 +331,7 @@ export default observer(function SearchPage() {
                   flexDirection: 'row',
                   alignItems: 'center',
                   backgroundColor: active
-                    ? (isDark ? CHATGPT_COMPOSER.dark.text : CHATGPT_COMPOSER.light.text)
+                    ? palette.text
                     : (isDark ? SEARCH_PILL_IDLE.dark : SEARCH_PILL_IDLE.light),
                 }}
               >
@@ -338,9 +340,7 @@ export default observer(function SearchPage() {
                     fontSize: 13,
                     lineHeight: 18,
                     fontWeight: '500',
-                    color: active
-                      ? (isDark ? CHATGPT_COMPOSER.dark.sendIcon : CHATGPT_COMPOSER.light.sendIcon)
-                      : (isDark ? CHATGPT_COMPOSER.dark.text : CHATGPT_COMPOSER.light.text),
+                    color: active ? palette.onAccent : palette.text,
                     ...(Platform.OS === 'android' ? { includeFontPadding: false } : null),
                   }}
                 >
@@ -353,7 +353,7 @@ export default observer(function SearchPage() {
                     lineHeight: 18,
                     color: active
                       ? (isDark ? SEARCH_PILL_COUNT_ACTIVE.dark : SEARCH_PILL_COUNT_ACTIVE.light)
-                      : SEARCH_PILL_COUNT_IDLE,
+                      : palette.mutedText,
                     ...(Platform.OS === 'android' ? { includeFontPadding: false } : null),
                   }}
                 >
@@ -402,11 +402,10 @@ export default observer(function SearchPage() {
             value={query}
             onChangeText={setQuery}
             placeholder="Search"
-            placeholderTextColor={CHATGPT_COMPOSER.dark.placeholder}
+            placeholderTextColor={palette.mutedText}
             autoCorrect={false}
             autoCapitalize="none"
             returnKeyType="search"
-            automaticallyAdjustKeyboardInsets={false}
             className="ml-2 flex-1 text-[16px] text-foreground"
             style={{ fontSize: 16, lineHeight: 20, paddingVertical: 0 }}
             accessibilityLabel="Search"

@@ -812,7 +812,7 @@ export default observer(function AllProjectsPage() {
 
       if (item.type === 'create') {
         return (
-          <View style={{ flex: 1, margin: comfortable ? 6 : 6 }}>
+          <View style={{ flex: 1, margin: 6 }}>
             <Pressable
               onPress={handleCreateProject}
               className="items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-border"
@@ -838,7 +838,7 @@ export default observer(function AllProjectsPage() {
             {(isDragOver) => (
               <View
                 className={cn(
-                  'w-full overflow-hidden rounded-2xl border bg-card',
+                  'overflow-hidden rounded-2xl border bg-card',
                   isDragOver ? 'border-2 border-primary bg-primary/5' : 'border-border',
                 )}
                 style={{ margin: 6 }}

@@ -19,7 +19,7 @@
  */
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { ActivityIndicator, Animated, Platform, Pressable, Text, View, useWindowDimensions } from 'react-native'
+import { ActivityIndicator, Platform, Pressable, Text, View, useWindowDimensions } from 'react-native'
 import { Slot, usePathname, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '../../contexts/auth'
@@ -35,13 +35,8 @@ import { RecordingIndicator } from '../../components/meetings/RecordingIndicator
 import { useNotificationClickRouter } from '../../lib/notifications/useNotificationClickRouter'
 import { mark as csMark } from '../../lib/cold-start-timing'
 import { nativePhoneCanvas } from '../../lib/native-phone-layout'
-import {
-  nativeDrawerPanelWidth,
-  snapNativeDrawer,
-  useNativeDrawerSheetSwipe,
-  useNativeDrawerSheetStyle,
-  nativeDrawerUnderlayStyle,
-} from '../../lib/use-native-drawer-swipe'
+import { useNativeSheetDrawer } from '../../lib/use-native-drawer-swipe'
+import { NativeSheetDrawerShell } from '../../components/layout/NativeSheetDrawerShell'
 
 csMark('app:layout:module-load')
 
@@ -69,8 +64,6 @@ export default function AppLayout() {
   const isDark = useResolvedTheme() === 'dark'
   const nativeDrawerCanvas = nativePhoneCanvas(isDark)
   const isWide = !isNativeApp && width >= 768
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const drawerProgress = useRef(new Animated.Value(0)).current
   const isHomePage = pathname === '/' || pathname === '/(app)' || pathname === '/(app)/index'
 
   const isProjectDetail = /^\/(app\/)?projects\/[^/]+/.test(pathname.replace(/^\/(app\/)?/, '/'))
@@ -146,24 +139,6 @@ export default function AppLayout() {
     } catch {}
   }, [isAuthenticated, user])
 
-  const nativeDrawerWidth = nativeDrawerPanelWidth(width)
-  const resetDrawer = useCallback(() => {
-    drawerProgress.setValue(0)
-    setDrawerOpen(false)
-  }, [drawerProgress])
-  const openDrawer = useCallback(() => {
-    setDrawerOpen(true)
-    snapNativeDrawer(drawerProgress, true)
-  }, [drawerProgress])
-  const closeDrawer = useCallback(() => {
-    snapNativeDrawer(drawerProgress, false, (open) => {
-      if (!open) resetDrawer()
-    })
-  }, [drawerProgress, resetDrawer])
-  const toggleDrawer = useCallback(() => {
-    if (drawerOpen) closeDrawer()
-    else openDrawer()
-  }, [closeDrawer, drawerOpen, openDrawer])
   const suppressNarrowAppHeader =
     isProjectDetail ||
     isBillingPage ||
@@ -172,16 +147,17 @@ export default function AppLayout() {
     isProfilePage ||
     isSearchPage ||
     isProjectChatsPage
-  const nativeDrawerSwipe = isNativeApp && !isWide && !isIdeEmbed && !suppressNarrowAppHeader
-  const sheetSwipeHandlers = useNativeDrawerSheetSwipe({
-    enabled: nativeDrawerSwipe,
-    drawerWidth: nativeDrawerWidth,
-    drawerProgress,
-    isOpen: drawerOpen,
-    onOpenChange: setDrawerOpen,
-  })
   const nativeSheetDrawer = isNativeApp && !isWide && !isIdeEmbed
-  const { sheetStyle, sheetClipStyle } = useNativeDrawerSheetStyle(drawerProgress, nativeDrawerWidth)
+  const drawer = useNativeSheetDrawer({
+    enabled: nativeSheetDrawer,
+    windowWidth: width,
+    swipeEnabled: nativeSheetDrawer && !suppressNarrowAppHeader,
+  })
+  const { drawerOpen, openDrawer, closeDrawer, resetDrawer } = drawer
+  const toggleDrawer = useCallback(() => {
+    if (drawerOpen) closeDrawer()
+    else openDrawer()
+  }, [closeDrawer, drawerOpen, openDrawer])
 
   useEffect(() => {
     if (!isWide) return
@@ -264,41 +240,24 @@ export default function AppLayout() {
             NativeWind's `className` prop is not processed on raw `Animated.View`
             (only registered host components get cssInterop treatment), so
             `flex-1` silently no-ops here on web and the column collapses to its
-            content width. Pass `flex: 1` via `style` instead, which works
-            regardless of NativeWind interop registration.
+            content width. The shell passes `flex: 1` via `style` instead, which
+            works regardless of NativeWind interop registration.
           */}
-          <View style={{ flex: 1, overflow: 'hidden' }} collapsable={false}>
-            {nativeSheetDrawer ? (
-              <View
-                pointerEvents={drawerOpen ? 'auto' : 'none'}
-                accessibilityElementsHidden={!drawerOpen}
-                importantForAccessibility={drawerOpen ? 'auto' : 'no-hide-descendants'}
-                style={nativeDrawerUnderlayStyle(nativeDrawerWidth, isDark)}
-              >
-                <AppSidebar
-                  isOpen={drawerOpen}
-                  onClose={closeDrawer}
-                />
+          <NativeSheetDrawerShell
+            drawer={drawer}
+            isDark={isDark}
+            sidebar={<AppSidebar isOpen={drawerOpen} onClose={closeDrawer} />}
+          >
+            <View className="flex-1 bg-background">
+              {!isWide && !isIdeEmbed && !suppressNarrowAppHeader && (
+                <AppHeader onMenuPress={toggleDrawer} menuOpen={drawerOpen} />
+              )}
+              <View className="flex-1">
+                {localMode && !isIdeEmbed && <RecordingIndicator />}
+                <Slot />
               </View>
-            ) : null}
-            <Animated.View
-              collapsable={false}
-              {...sheetSwipeHandlers}
-              style={[{ flex: 1, zIndex: 1 }, nativeSheetDrawer ? sheetStyle : undefined]}
-            >
-              <Animated.View style={sheetClipStyle}>
-                <View className="flex-1 bg-background">
-                  {!isWide && !isIdeEmbed && !suppressNarrowAppHeader && (
-                    <AppHeader onMenuPress={toggleDrawer} menuOpen={drawerOpen} />
-                  )}
-                  <View className="flex-1">
-                    {localMode && !isIdeEmbed && <RecordingIndicator />}
-                    <Slot />
-                  </View>
-                </View>
-              </Animated.View>
-            </Animated.View>
-          </View>
+            </View>
+          </NativeSheetDrawerShell>
         </View>
 
         {!isWide && !isNativeApp && (

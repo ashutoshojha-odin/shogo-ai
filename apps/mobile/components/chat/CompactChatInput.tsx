@@ -34,7 +34,6 @@ import {
   Mic,
   Square,
   Languages,
-  Cloud,
 } from "lucide-react-native"
 import {
   executeNativeAttachAction,
@@ -70,14 +69,13 @@ import {
 
 import { AttachSourceSheet } from "./AttachSourceSheet"
 import {
-  CHATGPT_COMPOSER,
-  ComposerPlusModeList,
-  ComposerPlusSection,
   ComposerPlusSheet,
   compactNativeModelLabel,
+  composerPlusSheetMaxHeight,
+  useComposerPlusMenu,
 } from "./ComposerPlusMenu"
-
-export { ComposerPlusSection } from "./ComposerPlusMenu"
+import { ComposerPlusCoreSections } from "./ComposerPlusCoreSections"
+import { chatGptComposerColors } from "../../lib/native-chatgpt-theme"
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 const MAX_FILES = 10
@@ -207,7 +205,7 @@ export const CompactChatInput = forwardRef<View, CompactChatInputProps>(
     const isNativePhone = Platform.OS !== "web" && windowWidth < 600
     const useProminentComposer = prominentMobile && isNativePhone
     const useLightProminentComposer = useProminentComposer && prominentColorScheme === "light"
-    const chatgptComposer = useLightProminentComposer ? CHATGPT_COMPOSER.light : CHATGPT_COMPOSER.dark
+    const chatgptComposer = chatGptComposerColors(!useLightProminentComposer)
     const useCurrentNativeSizing = isNative && !useProminentComposer
     const inputMinHeight = useProminentComposer
       ? COMPACT_INPUT_PROMINENT_MIN_HEIGHT
@@ -239,8 +237,8 @@ export const CompactChatInput = forwardRef<View, CompactChatInputProps>(
     const [pendingFiles, setPendingFiles] = useState<AttachedFile[]>([])
     const [fileError, setFileError] = useState<string | null>(null)
     const [attachSheetOpen, setAttachSheetOpen] = useState(false)
-    const [plusMenuOpen, setPlusMenuOpen] = useState(false)
-    const [plusExpandedId, setPlusExpandedId] = useState<string | null>(null)
+    const { plusMenuOpen, setPlusMenuOpen, plusExpandedId, closePlusMenu, togglePlusSection } =
+      useComposerPlusMenu()
     const [interactionModeOpen, setInteractionModeOpen] = useState(false)
     const [internalInteractionMode, setInternalInteractionMode] =
       useState<InteractionMode>("agent")
@@ -367,15 +365,6 @@ export const CompactChatInput = forwardRef<View, CompactChatInputProps>(
         }
         return [...prev, ...added]
       })
-    }, [])
-
-    const closePlusMenu = useCallback(() => {
-      setPlusMenuOpen(false)
-      setPlusExpandedId(null)
-    }, [])
-
-    const togglePlusSection = useCallback((id: string) => {
-      setPlusExpandedId((current) => (current === id ? null : id))
     }, [])
 
     const handlePlusAttach = useCallback((action: NativeAttachAction) => {
@@ -853,38 +842,24 @@ export const CompactChatInput = forwardRef<View, CompactChatInputProps>(
                   onClose={closePlusMenu}
                   expandedId={plusExpandedId}
                   onToggleSection={togglePlusSection}
-                  maxHeight={Math.round(windowHeight * 0.72)}
+                  maxHeight={composerPlusSheetMaxHeight(windowHeight)}
                   onAttach={handlePlusAttach}
                   attachDisabled={pendingFiles.length >= MAX_FILES}
                 >
                   {plusMenuExtras}
-                  <ComposerPlusSection
-                    id="mode"
-                    label="Mode"
-                    value={currentInteractionConfig.label}
-                    Icon={currentInteractionConfig.Icon}
-                  >
-                    <ComposerPlusModeList
-                      modes={INTERACTION_MODES}
-                      selectedId={interactionMode}
-                      onSelect={handleInteractionModeChange}
-                      dualPlan={dualPlan}
-                      onDualPlanChange={onDualPlanChange}
-                      dualPlanDisabled={disabled}
-                      dualPlanTestId="home-dual-plan-toggle"
-                    />
-                  </ComposerPlusSection>
-                  <ComposerPlusSection
-                    id="environment"
-                    label="Environment"
-                    Icon={Cloud}
-                  >
-                    <EnvironmentPicker
-                      disabled={disabled || isLoading}
-                      presentation="list"
-                      listActive={plusExpandedId === "environment"}
-                    />
-                  </ComposerPlusSection>
+                  <ComposerPlusCoreSections
+                    modes={INTERACTION_MODES}
+                    interactionMode={interactionMode}
+                    currentModeLabel={currentInteractionConfig.label}
+                    CurrentModeIcon={currentInteractionConfig.Icon}
+                    onInteractionModeChange={handleInteractionModeChange}
+                    dualPlan={dualPlan}
+                    onDualPlanChange={onDualPlanChange}
+                    dualPlanDisabled={disabled}
+                    dualPlanTestId="home-dual-plan-toggle"
+                    expandedId={plusExpandedId}
+                    environmentDisabled={disabled || isLoading}
+                  />
                 </ComposerPlusSheet>
                 </>
               ) : (
@@ -1104,7 +1079,6 @@ export const CompactChatInput = forwardRef<View, CompactChatInputProps>(
                   scrollEnabled={inputHeight > COMPACT_INPUT_PROMINENT_MIN_HEIGHT}
                   blurOnSubmit
                   returnKeyType="done"
-                  automaticallyAdjustKeyboardInsets={false}
                   onContentSizeChange={(e) => {
                     if (composerEmpty) {
                       if (inputHeight !== COMPACT_INPUT_PROMINENT_MIN_HEIGHT) {

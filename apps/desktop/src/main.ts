@@ -853,13 +853,17 @@ async function getEmbeddedWebServerUrl(): Promise<string> {
   return embeddedWebServerStarting
 }
 
+/** Metro's origin in `IS_DEV`. Packaged builds serve the renderer from `shogo://app`. */
+function getDesktopDevUrl(): string {
+  return process.env.DESKTOP_DEV_URL || 'http://localhost:8081'
+}
+
 function getAppWindowUrl(pathWithQuery = '/'): string {
   if (isCloudMode) {
     return new URL(pathWithQuery, getCloudUrl()).toString()
   }
   if (IS_DEV) {
-    const devUrl = process.env.DESKTOP_DEV_URL || `http://localhost:8081`
-    return new URL(pathWithQuery, devUrl).toString()
+    return new URL(pathWithQuery, getDesktopDevUrl()).toString()
   }
   return new URL(pathWithQuery, 'shogo://app').toString()
 }
@@ -905,7 +909,7 @@ async function getEmbeddableAppWindowUrl(pathWithQuery = '/'): Promise<string> {
   if (isCloudMode) return getAppWindowUrl(pathWithQuery)
 
   if (IS_DEV) {
-    const devBaseUrl = process.env.DESKTOP_DEV_URL || `http://localhost:8081`
+    const devBaseUrl = getDesktopDevUrl()
     const devUrl = new URL(pathWithQuery, devBaseUrl).toString()
     if (canCheckHttpUrl(devUrl) && await isHttpUrlReachable(new URL('/', devBaseUrl).toString())) return devUrl
   }
@@ -1502,12 +1506,11 @@ function isTrustedMediaOrigin(url: string): boolean {
   return false
 }
 
-/** Origin the renderer is actually served from. Packaged builds use `shogo://app`;
- *  `IS_DEV` loads Metro at DESKTOP_DEV_URL (default http://localhost:8081). */
+/** Origin the renderer is actually served from. */
 function rendererCorsOrigin(): string {
   if (!IS_DEV) return 'shogo://app'
   try {
-    return new URL(process.env.DESKTOP_DEV_URL || 'http://localhost:8081').origin
+    return new URL(getDesktopDevUrl()).origin
   } catch {
     return 'http://localhost:8081'
   }

@@ -20,22 +20,18 @@ import {
   ActivityIndicator,
   useWindowDimensions,
   Platform,
-  Animated,
   StyleSheet,
 } from 'react-native'
 import { Slot, usePathname, useRouter } from 'expo-router'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { nativePhoneCanvas } from '../../lib/native-phone-layout'
 import {
-  nativeDrawerPanelWidth,
-  snapNativeDrawer,
-  useNativeDrawerSheetSwipe,
-  useNativeDrawerSheetStyle,
-  nativeDrawerUnderlayStyle,
+  useNativeSheetDrawer,
   nativeDrawerTopInset,
   nativeDrawerSideInset,
   nativeDrawerFooterInset,
 } from '../../lib/use-native-drawer-swipe'
+import { NativeSheetDrawerShell } from '../../components/layout/NativeSheetDrawerShell'
 import {
   LayoutDashboard,
   Users,
@@ -546,40 +542,18 @@ function AdminLayoutInner() {
   const nativeDrawerCanvas = nativePhoneCanvas(isDark)
   const isWide = !isNativeApp && width >= 900
   const nativeSheetDrawer = isNativeApp
-  const nativeDrawerWidth = nativeDrawerPanelWidth(width)
-  const drawerProgress = useRef(new Animated.Value(0)).current
   const { isSuperAdmin, scopes, hasAdminAccess, isPending, isAuthenticated, userEmail, userName } = useAdminCheck()
   const { localMode } = usePlatformConfig()
   const infraHealth = useInfraHealth(isSuperAdmin)
-  const [drawerOpen, setDrawerOpen] = useState(false)
 
-  const resetDrawer = useCallback(() => {
-    drawerProgress.setValue(0)
-    setDrawerOpen(false)
-  }, [drawerProgress])
-  const openDrawer = useCallback(() => {
-    setDrawerOpen(true)
-    snapNativeDrawer(drawerProgress, true)
-  }, [drawerProgress])
-  const closeDrawer = useCallback(() => {
-    snapNativeDrawer(drawerProgress, false, (open) => {
-      if (!open) resetDrawer()
-    })
-  }, [drawerProgress, resetDrawer])
+  const drawer = useNativeSheetDrawer({ enabled: nativeSheetDrawer, windowWidth: width })
+  const { drawerOpen, setDrawerOpen, openDrawer, closeDrawer, resetDrawer } = drawer
   const toggleDrawer = useCallback(() => {
     if (drawerOpen) closeDrawer()
     else if (nativeSheetDrawer) openDrawer()
+    // Narrow web has no sheet to animate — the overlay drawer just mounts.
     else setDrawerOpen(true)
-  }, [closeDrawer, drawerOpen, nativeSheetDrawer, openDrawer])
-
-  const sheetSwipeHandlers = useNativeDrawerSheetSwipe({
-    enabled: nativeSheetDrawer,
-    drawerWidth: nativeDrawerWidth,
-    drawerProgress,
-    isOpen: drawerOpen,
-    onOpenChange: setDrawerOpen,
-  })
-  const { sheetStyle, sheetClipStyle } = useNativeDrawerSheetStyle(drawerProgress, nativeDrawerWidth)
+  }, [closeDrawer, drawerOpen, nativeSheetDrawer, openDrawer, setDrawerOpen])
 
   const sidebarProps = {
     userName,
@@ -647,39 +621,25 @@ function AdminLayoutInner() {
       <View className="flex-1 flex-row">
         {isWide && <AdminSidebar {...sidebarProps} />}
 
-        <View style={{ flex: 1, overflow: 'hidden' }} collapsable={false}>
-          {nativeSheetDrawer ? (
-            <View
-              pointerEvents={drawerOpen ? 'auto' : 'none'}
-              accessibilityElementsHidden={!drawerOpen}
-              importantForAccessibility={drawerOpen ? 'auto' : 'no-hide-descendants'}
-              style={nativeDrawerUnderlayStyle(nativeDrawerWidth, isDark)}
-            >
-              <AdminSidebar {...sidebarProps} isNativeDrawer onClose={closeDrawer} />
+        <NativeSheetDrawerShell
+          drawer={drawer}
+          isDark={isDark}
+          sidebar={<AdminSidebar {...sidebarProps} isNativeDrawer onClose={closeDrawer} />}
+        >
+          <View className="flex-1 bg-background">
+            {!isWide && (
+              <MobileHeader
+                onMenuPress={toggleDrawer}
+                title={getPageTitle(pathname)}
+                menuOpen={drawerOpen}
+                isNative={isNativeApp}
+              />
+            )}
+            <View className="flex-1">
+              <Slot />
             </View>
-          ) : null}
-          <Animated.View
-            collapsable={false}
-            {...sheetSwipeHandlers}
-            style={[{ flex: 1, zIndex: 1 }, nativeSheetDrawer ? sheetStyle : undefined]}
-          >
-            <Animated.View style={nativeSheetDrawer ? sheetClipStyle : { flex: 1, overflow: 'hidden' }}>
-              <View className="flex-1 bg-background">
-                {!isWide && (
-                  <MobileHeader
-                    onMenuPress={toggleDrawer}
-                    title={getPageTitle(pathname)}
-                    menuOpen={drawerOpen}
-                    isNative={isNativeApp}
-                  />
-                )}
-                <View className="flex-1">
-                  <Slot />
-                </View>
-              </View>
-            </Animated.View>
-          </Animated.View>
-        </View>
+          </View>
+        </NativeSheetDrawerShell>
       </View>
 
       {!isWide && !nativeSheetDrawer && drawerOpen && (

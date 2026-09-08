@@ -479,6 +479,55 @@ const PROJECT_SCOPE_OPTIONS: { value: ProjectScope; label: string }[] = [
   { value: 'all', label: 'All projects' },
   { value: 'mine', label: 'My projects' },
 ]
+/** Sheets sit on the canvas, so they clear the home indicator by a little more. */
+const NATIVE_SHEET_MIN_BOTTOM_INSET = 18
+const NATIVE_SHEET_MIN_CONTENT_INSET = 16
+
+function FilterOptionGroup<T extends string>({
+  title,
+  titleClassName,
+  options,
+  selected,
+  onSelect,
+}: {
+  title: string
+  titleClassName?: string
+  options: { value: T; label: string }[]
+  selected: T
+  onSelect: (value: T) => void
+}) {
+  return (
+    <>
+      <Text
+        className={cn(
+          'pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground',
+          titleClassName ?? 'pt-2',
+        )}
+      >
+        {title}
+      </Text>
+      {options.map((opt) => (
+        <Pressable
+          key={opt.value}
+          onPress={() => onSelect(opt.value)}
+          role={MENU_ITEM_RADIO_ROLE}
+          accessibilityState={{ checked: selected === opt.value }}
+          className="flex-row items-center min-h-14 gap-3 px-1 active:bg-muted rounded-xl"
+        >
+          <Text
+            className={cn(
+              'text-lg flex-1',
+              selected === opt.value ? 'text-foreground font-medium' : 'text-muted-foreground',
+            )}
+          >
+            {opt.label}
+          </Text>
+          {selected === opt.value ? <Check size={20} className="text-primary" /> : null}
+        </Pressable>
+      ))}
+    </>
+  )
+}
 
 function ProjectFilterSheet({
   visible,
@@ -510,7 +559,7 @@ function ProjectFilterSheet({
           style={{
             borderTopLeftRadius: 24,
             borderTopRightRadius: 24,
-            paddingBottom: Math.max(bottomInset, 16),
+            paddingBottom: Math.max(bottomInset, NATIVE_SHEET_MIN_CONTENT_INSET),
           }}
         >
           <View className="w-10 h-1 rounded-full bg-muted-foreground/40 self-center mb-4 mt-1" />
@@ -526,43 +575,22 @@ function ProjectFilterSheet({
             </Pressable>
           </View>
 
-          <Text className="pt-2 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Sort by
-          </Text>
-          {PROJECT_SORT_OPTIONS.map((opt) => (
-            <Pressable
-              key={opt.value}
-              onPress={() => onSort(opt.value)}
-              role={MENU_ITEM_RADIO_ROLE}
-              accessibilityState={{ checked: sort === opt.value }}
-              className="flex-row items-center min-h-14 gap-3 px-1 active:bg-muted rounded-xl"
-            >
-              <Text className={cn('text-lg flex-1', sort === opt.value ? 'text-foreground font-medium' : 'text-muted-foreground')}>
-                {opt.label}
-              </Text>
-              {sort === opt.value ? <Check size={20} className="text-primary" /> : null}
-            </Pressable>
-          ))}
+          <FilterOptionGroup
+            title="Sort by"
+            options={PROJECT_SORT_OPTIONS}
+            selected={sort}
+            onSelect={onSort}
+          />
 
           <View className="h-px bg-border my-2" />
 
-          <Text className="pt-1 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Show
-          </Text>
-          {PROJECT_SCOPE_OPTIONS.map((opt) => (
-            <Pressable
-              key={opt.value}
-              onPress={() => onScope(opt.value)}
-              role={MENU_ITEM_RADIO_ROLE}
-              accessibilityState={{ checked: scope === opt.value }}
-              className="flex-row items-center min-h-14 gap-3 px-1 active:bg-muted rounded-xl"
-            >
-              <Text className={cn('text-lg flex-1', scope === opt.value ? 'text-foreground font-medium' : 'text-muted-foreground')}>
-                {opt.label}
-              </Text>
-              {scope === opt.value ? <Check size={20} className="text-primary" /> : null}
-            </Pressable>
-          ))}
+          <FilterOptionGroup
+            title="Show"
+            titleClassName="pt-1"
+            options={PROJECT_SCOPE_OPTIONS}
+            selected={scope}
+            onSelect={onScope}
+          />
         </View>
       </View>
     </Modal>
@@ -1816,7 +1844,11 @@ export const AppSidebar = observer(function AppSidebar({ isOpen, onClose }: AppS
   const isDark = useResolvedTheme() === 'dark'
   const nativeDrawerCanvas = nativePhoneCanvas(isDark)
   const drawerTopInset = isNativeDrawer ? nativeDrawerTopInset(insets.top) : insets.top
-  const drawerBottomInset = isNativeDrawer ? Math.max(insets.bottom, 18) : insets.bottom
+  // Bottom sheets sit on the canvas rather than in the drawer footer, so they
+  // clear the home indicator by a little more than `nativeDrawerFooterInset`.
+  const drawerBottomInset = isNativeDrawer
+    ? Math.max(insets.bottom, NATIVE_SHEET_MIN_BOTTOM_INSET)
+    : insets.bottom
   // Sit above the home indicator / rounded corner without the extra min-height
   // padding that used to look like a second empty row.
   const drawerFooterInset = isNativeDrawer ? nativeDrawerFooterInset(insets.bottom) : insets.bottom

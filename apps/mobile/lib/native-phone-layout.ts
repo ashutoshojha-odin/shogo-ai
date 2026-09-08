@@ -9,6 +9,7 @@
  *   logical units as `useWindowDimensions()` (dp on Android, points on iOS).
  */
 import { Platform, useWindowDimensions, type ViewStyle } from 'react-native'
+import { NATIVE_CHATGPT_PALETTE, nativeChatGptPalette } from './native-chatgpt-theme'
 
 /** Matches Android `sw600dp` smallest-width bucket for “tablet” layouts. */
 const ANDROID_TABLET_MIN_SHORTEST_EDGE = 600
@@ -44,13 +45,16 @@ export const NATIVE_PHONE_ROW_GAP = 8
 /** Wrap-row gap between two-column stat cards (`gap-3`). */
 export const NATIVE_PHONE_CARD_GAP = 12
 /**
- * Native ChatGPT canvas (`nativeChatGptSurfaces` in the Gluestack provider).
- * Use for style props where NativeWind `bg-background` is not applied.
+ * Native ChatGPT canvas. Use for style props where NativeWind `bg-background`
+ * is not applied.
  */
-export const NATIVE_PHONE_CANVAS = { dark: '#000000', light: '#ffffff' } as const
+export const NATIVE_PHONE_CANVAS = {
+  dark: NATIVE_CHATGPT_PALETTE.dark.canvas,
+  light: NATIVE_CHATGPT_PALETTE.light.canvas,
+} as const
 
 export function nativePhoneCanvas(isDark: boolean): string {
-  return isDark ? NATIVE_PHONE_CANVAS.dark : NATIVE_PHONE_CANVAS.light
+  return nativeChatGptPalette(isDark).canvas
 }
 
 /**
@@ -166,6 +170,20 @@ export function nativeSettingsPaneStyle(width: number): ViewStyle {
     maxWidth: width,
     alignSelf: 'stretch',
   }
+}
+
+/**
+ * Root style for a project panel that stays mounted while hidden. Web keeps the
+ * absolute-fill class and only toggles `display`; native phone additionally
+ * needs the pixel width so Yoga does not shrink-wrap the pane.
+ */
+export function nativePanelRootStyle(
+  isPhone: boolean,
+  paneWidth: number,
+  visible: boolean,
+): ViewStyle {
+  const display: ViewStyle['display'] = visible ? 'flex' : 'none'
+  return isPhone ? { ...nativeSettingsPaneStyle(paneWidth), display } : { display }
 }
 
 /**

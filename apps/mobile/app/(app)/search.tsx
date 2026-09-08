@@ -35,7 +35,7 @@ import {
 import { useActiveWorkspace } from '../../hooks/useActiveWorkspace'
 import { usePlatformConfig } from '../../lib/platform-config'
 import { useNativeComposerDockPad } from '../../lib/use-native-composer-keyboard'
-import { isNativePlatform, nativePhoneCanvas, NATIVE_PHONE_GUTTER } from '../../lib/native-phone-layout'
+import { isNativePlatform, NATIVE_PHONE_GUTTER } from '../../lib/native-phone-layout'
 import { nativeChatGptPalette } from '../../lib/native-chatgpt-theme'
 
 const SEARCH_MIN_KEYBOARD_PAD = 8
@@ -216,13 +216,12 @@ export default observer(function SearchPage() {
   /**
    * Filter every tab's source list once. The tab strip needs a count for each
    * tab and the list needs the rows for the selected one, so filtering per
-   * consumer would run the same predicate over the same arrays twice.
+   * consumer would run the same predicate over the same arrays twice. Sorting
+   * stays out of here — only the selected tab is ever rendered.
    */
   const matches = useMemo(() => {
     const filterProjects = (list: any[]) =>
-      list
-        .filter((p: any) => matchesQuery(`${p.name ?? ''} ${p.description ?? ''}`, q))
-        .sort((a: any, b: any) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0))
+      list.filter((p: any) => matchesQuery(`${p.name ?? ''} ${p.description ?? ''}`, q))
     return {
       all: filterProjects(allProjects),
       starred: filterProjects(starredProjects),
@@ -241,13 +240,16 @@ export default observer(function SearchPage() {
         kind: 'keys' as const,
       }))
     }
-    return matches[tab].map((p: any) => ({
-      id: p.id,
-      title: p.name || 'Untitled project',
-      subtitle: [p.description, timeAgo(p.updatedAt || p.createdAt)].filter(Boolean).join(' · ') || 'Project',
-      href: `/(app)/projects/${p.id}?tab=chat-fullscreen`,
-      kind: tab,
-    }))
+    return matches[tab]
+      .slice()
+      .sort((a: any, b: any) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0))
+      .map((p: any) => ({
+        id: p.id,
+        title: p.name || 'Untitled project',
+        subtitle: [p.description, timeAgo(p.updatedAt || p.createdAt)].filter(Boolean).join(' · ') || 'Project',
+        href: `/(app)/projects/${p.id}?tab=chat-fullscreen`,
+        kind: tab,
+      }))
   }, [matches, tab])
 
   const tabs = useMemo(
@@ -399,7 +401,6 @@ export default observer(function SearchPage() {
             autoCorrect={false}
             autoCapitalize="none"
             returnKeyType="search"
-            automaticallyAdjustKeyboardInsets={false}
             className="ml-2 flex-1 text-[16px] text-foreground"
             style={{ fontSize: 16, lineHeight: 20, paddingVertical: 0 }}
             accessibilityLabel="Search"

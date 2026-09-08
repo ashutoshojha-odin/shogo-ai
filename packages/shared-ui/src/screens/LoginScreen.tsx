@@ -241,19 +241,37 @@ function openExternalUrl(url: string) {
   })
 }
 
-function ConsentNotice({ className }: { className?: string } = {}) {
+const CONSENT_ONE_LINE_STYLE = { fontSize: 11, lineHeight: 14, textAlign: 'center' } as const
+const CONSENT_WRAPPED_STYLE = { flexWrap: 'wrap' } as const
+const CONSENT_LINK_STYLE = { fontWeight: '600' } as const
+// Colour alone is not an accessible link affordance, so the wrapping paragraph
+// underlines. The shrink-to-fit row drops it to stay legible at 70% scale.
+const CONSENT_LINK_UNDERLINED_STYLE = { fontWeight: '600', textDecorationLine: 'underline' } as const
+
+/**
+ * Legal consent line under the sign-in form. Shared by the native, compact-web
+ * and desktop panels.
+ *
+ * `singleLine` is the native-phone treatment: shrink to fit on one row so the
+ * notice does not push the form off a short screen. Web and desktop keep the
+ * wrapping `text-xs` paragraph — react-native-web ignores
+ * `adjustsFontSizeToFit`, so `numberOfLines` would clip the legal text there
+ * rather than shrink it.
+ */
+function ConsentNotice({ singleLine = false }: { singleLine?: boolean } = {}) {
+  const linkStyle = singleLine ? CONSENT_LINK_STYLE : CONSENT_LINK_UNDERLINED_STYLE
   return (
     <Text
-      className={cn('text-muted-foreground mt-1', className)}
-      numberOfLines={1}
-      adjustsFontSizeToFit
-      minimumFontScale={0.7}
-      style={{ fontSize: 11, lineHeight: 14, textAlign: 'center' }}
+      className={cn('text-muted-foreground mt-1', !singleLine && 'text-xs')}
+      numberOfLines={singleLine ? 1 : undefined}
+      adjustsFontSizeToFit={singleLine}
+      minimumFontScale={singleLine ? 0.7 : undefined}
+      style={singleLine ? CONSENT_ONE_LINE_STYLE : CONSENT_WRAPPED_STYLE}
     >
       By continuing, you agree to our{' '}
       <Text
         className="text-brand-landing"
-        style={{ fontWeight: '600' }}
+        style={linkStyle}
         onPress={() => openExternalUrl(PRIVACY_URL)}
         accessibilityRole="link"
         accessibilityLabel="Privacy Policy"
@@ -263,7 +281,7 @@ function ConsentNotice({ className }: { className?: string } = {}) {
       {' '}and{' '}
       <Text
         className="text-brand-landing"
-        style={{ fontWeight: '600' }}
+        style={linkStyle}
         onPress={() => openExternalUrl(TERMS_URL)}
         accessibilityRole="link"
         accessibilityLabel="Terms of Use"
@@ -1031,7 +1049,7 @@ function NativeMobileLoginPanel({
           )}
 
           <View className="mt-5">
-            <ConsentNotice />
+            <ConsentNotice singleLine />
           </View>
         </View>
       </ScrollView>

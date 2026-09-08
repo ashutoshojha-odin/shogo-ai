@@ -2,8 +2,11 @@
 // Copyright (C) 2026 Shogo Technologies, Inc.
 
 import { useEffect, useRef } from 'react'
-import { Dimensions, Easing, Keyboard, Platform } from 'react-native'
+import { Animated, Dimensions, Easing, Keyboard, Platform } from 'react-native'
 import {
+  nativeComposerDockBottomPad,
+  nativeComposerKeyboardDuration,
+  nativeComposerKeyboardOpenFromSource,
   nativeComposerKeyboardOverlap,
   NATIVE_COMPOSER_KEYBOARD_EASING,
   type NativeComposerKeyboardEvent,
@@ -56,4 +59,51 @@ export function useNativeComposerKeyboard(
       onFrameRef.current(event, source)
     })
   }, [enabled])
+}
+
+/**
+ * Animated bottom padding that keeps a docked composer a fixed gap above the
+ * keyboard. Returns the value to spread into a `paddingBottom` style.
+ *
+ * `restPad` may change while the keyboard is closed (rotation, safe-area
+ * updates); the value is re-seeded in that case so the pill does not jump.
+ */
+export function useNativeComposerDockPad({
+  enabled,
+  restPad,
+  iosKeyboardAvoiding,
+}: {
+  enabled: boolean
+  restPad: number
+  iosKeyboardAvoiding: boolean
+}): Animated.Value {
+  const pad = useRef(new Animated.Value(restPad)).current
+  const restPadRef = useRef(restPad)
+  restPadRef.current = restPad
+  const keyboardOpenRef = useRef(false)
+
+  useEffect(() => {
+    if (!keyboardOpenRef.current) pad.setValue(restPad)
+  }, [pad, restPad])
+
+  useNativeComposerKeyboard(enabled, (event, source) => {
+    const rest = restPadRef.current
+    const overlap = nativeComposerKeyboardOverlapFromEvent(event)
+    const keyboardOpen = nativeComposerKeyboardOpenFromSource(source, overlap, rest)
+    if (keyboardOpen == null) return
+    keyboardOpenRef.current = keyboardOpen
+    Animated.timing(pad, {
+      toValue: nativeComposerDockBottomPad({
+        keyboardOpen,
+        overlap,
+        restPad: rest,
+        iosKeyboardAvoiding,
+      }),
+      duration: nativeComposerKeyboardDuration(event.duration),
+      easing: nativeComposerKeyboardEasing(),
+      useNativeDriver: false,
+    }).start()
+  })
+
+  return pad
 }

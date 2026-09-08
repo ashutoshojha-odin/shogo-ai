@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (C) 2026 Shogo Technologies, Inc.
 import { describe, expect, test } from 'bun:test'
-import { nativeContentWidth, nativePhoneCanvas, nativePhoneFillStyle, nativeSettingsPaneFill, nativeSettingsPaneStyle, nativeSkillsActionWidths, nativeEqualChipWidths, nativeGridChipWidth, nativeTwoColumnCardWidth, NATIVE_PHONE_CANVAS } from '../native-phone-layout'
+import { nativeContentWidth, nativePanelRootStyle, nativePhoneCanvas, nativePhoneFillStyle, nativeSettingsPaneFill, nativeSettingsPaneStyle, nativeSkillsActionWidths, nativeEqualChipWidths, nativeGridChipWidth, nativeTwoColumnCardWidth, NATIVE_PHONE_CANVAS } from '../native-phone-layout'
 
 describe('nativeContentWidth', () => {
   test('subtracts the default section inset', () => {
@@ -88,5 +88,19 @@ describe('nativePhoneCanvas', () => {
     expect(nativePhoneCanvas(true)).toBe(NATIVE_PHONE_CANVAS.dark)
     expect(nativePhoneCanvas(false)).toBe(NATIVE_PHONE_CANVAS.light)
     expect(NATIVE_PHONE_CANVAS).toEqual({ dark: '#000000', light: '#ffffff' })
+  })
+})
+
+describe('nativePanelRootStyle', () => {
+  test('web keeps the absolute-fill class and only toggles display', () => {
+    expect(nativePanelRootStyle(false, 402, true)).toEqual({ display: 'flex' })
+    expect(nativePanelRootStyle(false, 402, false)).toEqual({ display: 'none' })
+  })
+
+  test('native phone pins the pane width so Yoga cannot shrink-wrap it', () => {
+    expect(nativePanelRootStyle(true, 402, true)).toEqual({
+      ...nativeSettingsPaneStyle(402),
+      display: 'flex',
+    })
   })
 })

@@ -10,6 +10,7 @@ import { GroupedToolTags } from './GroupedToolTags'
 import {
   useNativePhoneWindow,
   nativeContentWidth,
+  nativePanelRootStyle,
   nativeSettingsPaneStyle,
   nativeSkillsActionWidths,
   NATIVE_PHONE_PICKER_INSET,
@@ -268,11 +269,7 @@ export function SkillsPanel({ projectId, agentUrl, visible }: SkillsPanelProps) 
     <View
       collapsable={false}
       className={comfortable ? undefined : 'absolute inset-0 flex-col'}
-      style={
-        comfortable
-          ? { ...nativeSettingsPaneStyle(pageWidth), display: visible ? 'flex' : 'none' }
-          : { display: visible ? 'flex' : 'none' }
-      }
+      style={nativePanelRootStyle(comfortable, pageWidth, visible)}
     >
       <View
         collapsable={false}

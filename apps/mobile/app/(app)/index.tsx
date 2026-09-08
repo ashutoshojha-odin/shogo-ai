@@ -29,7 +29,8 @@ import {
   useDomainActions,
   useDomainHttp,
 } from '../../contexts/domain'
-import { CompactChatInput, ComposerPlusSection } from '../../components/chat/CompactChatInput'
+import { CompactChatInput } from '../../components/chat/CompactChatInput'
+import { ComposerPlusSection } from '../../components/chat/ComposerPlusMenu'
 import type { FileAttachment, InteractionMode } from '../../components/chat/ChatInput'
 import { DEFAULT_MODEL_PRO, DEFAULT_MODEL_FREE } from '../../components/chat/ChatInput'
 import {
@@ -47,19 +48,9 @@ import { api, getOnboardingMessage } from '../../lib/api'
 import { EVENTS, trackEvent } from '../../lib/analytics'
 import { safeGetItem, safeRemoveItem } from '../../lib/safe-storage'
 import { getPendingLicenseCode, clearPendingLicenseCode } from '../../lib/pending-license'
-import {
-  nativeComposerDockBottomPad,
-  nativeComposerKeyboardDuration,
-  nativeComposerKeyboardOpenFromSource,
-  type NativeComposerKeyboardEvent,
-  type NativeComposerKeyboardSource,
-} from '../../lib/native-composer-keyboard'
-import {
-  nativeComposerKeyboardEasing,
-  nativeComposerKeyboardOverlapFromEvent,
-  useNativeComposerKeyboard,
-} from '../../lib/use-native-composer-keyboard'
+import { useNativeComposerDockPad } from '../../lib/use-native-composer-keyboard'
 import { nativePhoneCanvas, NATIVE_PHONE_GUTTER } from '../../lib/native-phone-layout'
+import { nativeChatGptPalette } from '../../lib/native-chatgpt-theme'
 import type { AgentTileListing } from '../../components/marketplace/AgentTile'
 import { ProjectSourceMenu } from '../../components/project/ProjectSourceMenu'
 import { TechStackPicker } from '../../components/chat/TechStackPicker'
@@ -222,6 +213,8 @@ const COMPOSER_WRAPPER_NATIVE_LIGHT = {
   elevation: 5,
 } as const
 const CONTENT_MAX_WIDTH = { maxWidth: 680 } as const
+/** Keeps the docked composer clear of the home indicator on devices with none. */
+const HOME_COMPOSER_MIN_BOTTOM_PAD = 12
 const COMPOSER_WRAPPER_WEB_LIGHT = {
   maxWidth: 680,
   boxShadow:
@@ -256,13 +249,16 @@ const HomeScreen = observer(function HomeScreen() {
   const isMobile = screenWidth < 640
   const isNativePhone = Platform.OS !== 'web' && isMobile
   const homeEntrance = useRef(new Animated.Value(Platform.OS === 'web' ? 1 : 0)).current
-  const restComposerPad = Math.max(insets.bottom, 12)
+  const restComposerPad = Math.max(insets.bottom, HOME_COMPOSER_MIN_BOTTOM_PAD)
   const restComposerSidePad = NATIVE_PHONE_GUTTER
-  const restComposerPadRef = useRef(restComposerPad)
-  restComposerPadRef.current = restComposerPad
-  const composerKeyboardPad = useRef(new Animated.Value(restComposerPad)).current
-  const keyboardOpenRef = useRef(false)
+  // iOS lifts the whole screen via KeyboardAvoidingView, so the dock only adds
+  // the gap; Android pads by the measured keyboard overlap instead.
   const iosComposerAvoiding = Platform.OS === 'ios'
+  const composerKeyboardPad = useNativeComposerDockPad({
+    enabled: isNativePhone,
+    restPad: restComposerPad,
+    iosKeyboardAvoiding: iosComposerAvoiding,
+  })
 
   const [prompt, setPrompt] = useState('')
   const [interactionMode, setInteractionMode] = useState<InteractionMode>('agent')
@@ -295,46 +291,6 @@ const HomeScreen = observer(function HomeScreen() {
       useNativeDriver: true,
     }).start()
   }, [homeEntrance, isNativePhone])
-
-  const animateComposer = useCallback(
-    (opts: { pad: number; duration?: number }) => {
-      Animated.timing(composerKeyboardPad, {
-        toValue: opts.pad,
-        duration: nativeComposerKeyboardDuration(opts.duration),
-        easing: nativeComposerKeyboardEasing(),
-        useNativeDriver: false,
-      }).start()
-    },
-    [composerKeyboardPad],
-  )
-
-  const dockComposer = useCallback(
-    (event: NativeComposerKeyboardEvent, source: NativeComposerKeyboardSource) => {
-      const restPad = restComposerPadRef.current
-      const overlap = nativeComposerKeyboardOverlapFromEvent(event)
-      const keyboardOpen = nativeComposerKeyboardOpenFromSource(source, overlap, restPad)
-      if (keyboardOpen == null) return
-      keyboardOpenRef.current = keyboardOpen
-      animateComposer({
-        pad: nativeComposerDockBottomPad({
-          keyboardOpen,
-          overlap,
-          restPad,
-          iosKeyboardAvoiding: iosComposerAvoiding,
-        }),
-        duration: event.duration,
-      })
-    },
-    [animateComposer, iosComposerAvoiding],
-  )
-
-  useEffect(() => {
-    if (!keyboardOpenRef.current) {
-      composerKeyboardPad.setValue(restComposerPad)
-    }
-  }, [composerKeyboardPad, restComposerPad])
-
-  useNativeComposerKeyboard(isNativePhone, dockComposer)
 
   /**
    * Draft project the homepage opens behind the scenes for a creation
@@ -850,7 +806,7 @@ const HomeScreen = observer(function HomeScreen() {
       letterSpacing: isNativePhone ? -0.45 : -0.5,
       ...(isNativePhone
         ? {
-            color: isDark ? '#ececec' : '#0d0d0d',
+            color: nativeChatGptPalette(isDark).text,
             fontWeight: '600' as const,
           }
         : {}),

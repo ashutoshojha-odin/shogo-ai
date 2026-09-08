@@ -26,7 +26,7 @@ import {
 import { cn } from "@shogo/shared-ui/primitives"
 import { api, createHttpClient, type TechStackSummary } from "../../lib/api"
 import { mergeTechStacks, FALLBACK_TECH_STACKS, techStackDisplayName } from "../../lib/tech-stack-catalog"
-import { useComposerPlusClose } from "./AttachSourceSheet"
+import { useComposerPlusClose } from "./ComposerPlusMenu"
 
 /**
  * Show a native browser tooltip on hover (web only). Wraps children in a

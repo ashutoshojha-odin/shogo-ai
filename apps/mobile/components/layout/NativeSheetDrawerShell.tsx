@@ -47,7 +47,12 @@ export function NativeSheetDrawerShell({
         {...swipeHandlers}
         style={[SHEET_FRAME, enabled ? sheetStyle : undefined]}
       >
-        <Animated.View style={enabled ? sheetClipStyle : CLIP_FRAME}>{children}</Animated.View>
+        {/*
+          `sheetClipStyle` is unconditional: its radii interpolate from the
+          progress value, which stays at 0 whenever the sheet is disabled, so
+          this renders identically to a plain clipped frame there.
+        */}
+        <Animated.View style={sheetClipStyle}>{children}</Animated.View>
       </Animated.View>
     </View>
   )

@@ -264,7 +264,10 @@ export function useNativeSheetDrawer({
   /** Whether this platform/route uses the sheet drawer at all. */
   enabled: boolean
   windowWidth: number
-  /** Swipe can be suppressed on routes that own the horizontal gesture. */
+  /**
+   * Suppresses the edge swipe on routes that own the horizontal gesture. The
+   * swipe is always off when the sheet itself is disabled.
+   */
   swipeEnabled?: boolean
 }) {
   const drawerProgress = useRef(new Animated.Value(0)).current
@@ -288,7 +291,7 @@ export function useNativeSheetDrawer({
   }, [drawerProgress, resetDrawer])
 
   const swipeHandlers = useNativeDrawerSheetSwipe({
-    enabled: swipeEnabled,
+    enabled: enabled && swipeEnabled,
     drawerWidth,
     drawerProgress,
     isOpen: drawerOpen,
